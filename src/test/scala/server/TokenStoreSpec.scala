@@ -6,6 +6,7 @@ import cats.effect.IO
 import cats.effect.concurrent.Ref
 import io.chrisdavenport.fuuid.FUUID
 import org.specs2.Specification
+import server.UserStore.UserId
 import tsec.authentication.TSecBearerToken
 import tsec.common.SecureRandomId
 
@@ -18,8 +19,8 @@ class TokenStoreSpec extends Specification { def is = s2"""
 
 
   val buildRefStore = for {
-    token <- FUUID.randomFUUID[IO].map(TSecBearerToken(SecureRandomId("token"), _, Instant.now(), None))
-    tokens <- Ref.of[IO, Map[SecureRandomId, TSecBearerToken[FUUID]]](Map.empty)
+    token <- FUUID.randomFUUID[IO].map(UserStore.tagFUUIDAsUserId).map(TSecBearerToken(SecureRandomId("token"), _, Instant.now(), None))
+    tokens <- Ref.of[IO, Map[SecureRandomId, TSecBearerToken[UserId]]](Map.empty)
     store = TokenStore(tokens)
     _ <- store.put(token)
   } yield (store, token)
@@ -40,7 +41,7 @@ class TokenStoreSpec extends Specification { def is = s2"""
   val update = for {
     storeAndToken <- buildRefStore
     (store, token) = storeAndToken
-    token2 <- FUUID.randomFUUID[IO].map(TSecBearerToken(token.id, _, Instant.now(), None))
+    token2 <- FUUID.randomFUUID[IO].map(UserStore.tagFUUIDAsUserId).map(TSecBearerToken(token.id, _, Instant.now(), None))
     _ <- store.update(token2)
     tokenRetrieved <- store.get(token.id).value
   } yield tokenRetrieved must beSome(token2)

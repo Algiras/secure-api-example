@@ -1,14 +1,16 @@
 package server
 
+import cats.data.Kleisli
 import cats.effect.IO
-import cats.effect.concurrent.Ref
-import io.chrisdavenport.fuuid.FUUID
-import org.specs2._
-import server.AppServer.UsernamePasswordCredentials
-import server.UserStore.User
-import org.http4s.{Method, Request, _}
+import org.http4s.circe.jsonOf
 import org.http4s.implicits._
 import org.http4s.util.CaseInsensitiveString
+import org.http4s.{Method, Request, _}
+import org.specs2._
+import AppServer._
+import tsec.authentication
+import tsec.authentication.TSecBearerToken
+import tsec.common.SecureRandomId
 
 class AppServerSpec extends Specification {
   def is =
@@ -18,17 +20,50 @@ class AppServerSpec extends Specification {
       401 for /safe-resource $closedRouteCheck
       200 and `login token` for /login $loginRouteReturnsBearerToken
       200 for secure route after getting the token $secureRouteWithToken
+
+      200 add task to task list of tasks $addTaskToList
+      200 list tasks for specific user $userTaskList
   """
 
-  val username = "username"
-  val password = "password"
-  val newUser = UserStore.newUser(username, password)
+  implicit val listS: EntityDecoder[IO, List[String]] = jsonOf[IO, List[String]]
 
-  val appServer = for {
-    user <- newUser
-    userRef <- Ref.of[IO, Map[FUUID, User]](Map(user.id -> user))
-    server <- AppServer.server(userRef)
-  } yield server
+  private val newUser = UserStore.UsernamePasswordCredentials("username", "password")
+
+  private val appServerWithTaskService = for {
+    userStore <- UserStore(newUser)
+    tokenStore <- TokenStore.empty
+    taskService <- tasks.TaskService.empty
+  } yield (AppServer.server(userStore, tokenStore, taskService), taskService, tokenStore)
+
+  private val appServer = appServerWithTaskService.map(_._1)
+
+  private def extractUserByToken(tokenStore: authentication.BackingStore[IO, SecureRandomId, TSecBearerToken[UserStore.UserId]], token: Header) = {
+    tokenStore.get(SecureRandomId(token.value.split(" ")(1))).map(_.identity).value
+      .flatMap(uIdOpt => IO.fromEither(uIdOpt.toRight(new RuntimeException("Token Not Found"))))
+  }
+
+  def userLoginIntoServer(server: Kleisli[IO, Request[IO], Response[IO]]) = {
+    val loginRequest = Request(method = Method.POST, uri = uri"/login").withEntity(newUser)
+
+    for {
+      response <- server.run(loginRequest)
+        .map(_.headers.get(CaseInsensitiveString("Authorization")))
+        .map(_.toRight(new RuntimeException("Can't login"): Throwable))
+      token <- IO.fromEither(response)
+    } yield token
+  }
+
+
+  def addTaskToList = (for {
+    serverAndTaskS <- appServerWithTaskService
+    (server, taskService, tokenStore) = serverAndTaskS
+    token <- userLoginIntoServer(server)
+    taskDescription = "task1"
+    _ <- server.run(Request(method = Method.POST, uri = uri"/add-task").withHeaders(token).withEntity(taskDescription))
+    userId <- extractUserByToken(tokenStore, token)
+    ls <- taskService.list(userId)
+  } yield ls.find(_.description == taskDescription).map(_.description) must beSome(taskDescription)).unsafeRunSync()
+
 
   def openRouteCheck = (for {
     server <- appServer
@@ -37,10 +72,19 @@ class AppServerSpec extends Specification {
     )
   } yield res.status must_=== Status.Ok).unsafeRunSync()
 
+  def userTaskList = (for {
+    server <- appServer
+    token <- userLoginIntoServer(server)
+    taskDescription = "task1"
+    _ <- server.run(Request(method = Method.POST, uri = uri"/add-task").withHeaders(token).withEntity(taskDescription))
+    response <- server.run(Request(method = Method.GET, uri = uri"/list-task").withHeaders(token).withEntity(taskDescription))
+    res <- response.as[List[String]]
+  } yield res must_=== List(taskDescription)).unsafeRunSync()
+
   def loginRouteReturnsBearerToken = {
     for {
       server <- appServer
-      loginRequest = Request(method = Method.POST, uri = uri"/login").withEntity(UsernamePasswordCredentials(username, password))
+      loginRequest = Request(method = Method.POST, uri = uri"/login").withEntity(newUser)
       response <- server.run(loginRequest)
     } yield (response.status must_=== Status.Ok) and
       (response.headers.get(CaseInsensitiveString("Authorization")).map(_.value) must beSome(beMatching("Bearer .*")))
@@ -51,11 +95,7 @@ class AppServerSpec extends Specification {
 
     for {
       server <- appServer
-      loginRequest = Request(method = Method.POST, uri = uri"/login").withEntity(UsernamePasswordCredentials(username, password))
-      response <- server.run(loginRequest)
-        .map(_.headers.get(CaseInsensitiveString("Authorization")))
-        .map(_.toRight(new RuntimeException("Can't login"): Throwable))
-      token <- IO.fromEither(response)
+      token <- userLoginIntoServer(server)
       res <- server.run(Request(method = Method.GET, uri = uri"/safe-resource").withHeaders(token))
     } yield res.status must_=== Status.Ok
     }.unsafeRunSync()

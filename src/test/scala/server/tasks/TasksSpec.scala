@@ -1,8 +1,9 @@
-package server
+package server.tasks
 
 import cats.effect.IO
 import org.specs2.Specification
 import org.specs2.matcher.MatchResult
+import server.UserStoreSpec
 
 class TasksSpec extends Specification { def is =s2"""
       If you don't anything to task list it should be empty ${emptyCase.unsafeRunSync()}
@@ -12,7 +13,7 @@ class TasksSpec extends Specification { def is =s2"""
       Only tasks created by the specific user can be visible for that user ${userVisibleTask.unsafeRunSync()}
     """
 
-  private val emptyService: IO[TaskService[IO]] = TaskService.emptyTaskService
+  private val emptyService: IO[TaskService[IO]] = TaskService.empty
 
   private val userIdGen = UserStoreSpec.randomUserId
 

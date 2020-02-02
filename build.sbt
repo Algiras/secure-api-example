@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.13.1"
+ThisBuild / scalaVersion := "2.13.0"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
@@ -12,8 +12,8 @@ scalacOptions ++= Seq(
   "-feature", // warn about misused language features
   "-language:higherKinds", // allow higher kinded types without `import scala.language.higherKinds`
   "-Xlint", // enable handy linter warnings
-  "-Xfatal-warnings", // turn compiler warnings into errors
-  "-Yrangepos" // Use range positions for syntax trees.
+//  "-Xfatal-warnings", // turn compiler warnings into errors
+  "-Yrangepos", // Use range positions for syntax trees.
 )
 
 val http4sVersion = "0.21.0-M5"
@@ -27,6 +27,8 @@ val catsLogVersion = "1.0.1"
 val shapelessVersion = "2.3.3"
 
 val spec2Version = "4.6.0"
+
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
 
 lazy val root = (project in file("."))
   .settings(

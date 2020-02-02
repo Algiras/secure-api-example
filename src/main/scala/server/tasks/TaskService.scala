@@ -1,13 +1,13 @@
-package server
+package server.tasks
 
 import cats.effect.IO
 import cats.effect.concurrent.Ref
+import cats.syntax.monadError._
 import io.chrisdavenport.fuuid.FUUID
-import server.TaskService.{Task, TaskId}
 import server.UserStore.UserId
+import server.tasks.TaskService.{Task, TaskId}
 import shapeless.tag
 import shapeless.tag.@@
-import cats.syntax.monadError._
 
 trait TaskService[F[_]] {
   def add(userId: UserId, taskDescription: String): F[Task]
@@ -29,7 +29,7 @@ object TaskService {
 
   case class Task(id: TaskId, userId: UserId, description: String)
 
-  val emptyTaskService: IO[TaskService[IO]] = for {
+  val empty: IO[TaskService[IO]] = for {
     tasks <- Ref.of[IO, Map[TaskId, Task]](Map.empty)
   } yield new TaskService[IO] {
 
