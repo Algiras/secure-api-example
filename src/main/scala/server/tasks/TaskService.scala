@@ -4,10 +4,8 @@ import cats.effect.IO
 import cats.effect.concurrent.Ref
 import cats.syntax.monadError._
 import io.chrisdavenport.fuuid.FUUID
-import server.UserStore.UserId
-import server.tasks.TaskService.{Task, TaskId}
-import shapeless.tag
-import shapeless.tag.@@
+import domain.UserId
+import server.tasks.TaskService.Task
 
 trait TaskService[F[_]] {
   def add(userId: UserId, taskDescription: String): F[Task]
@@ -18,13 +16,6 @@ trait TaskService[F[_]] {
 }
 
 object TaskService {
-
-  trait TaskIdTag
-
-  type TaskId = FUUID @@ TaskIdTag
-
-  def tagFUUIDAsTaskId(id: FUUID): TaskId = tag[TaskIdTag][FUUID](id)
-
   case object TaskCanOnlyBeCompletedByCreator extends RuntimeException
 
   case class Task(id: TaskId, userId: UserId, description: String)

@@ -3,14 +3,15 @@ package server
 import cats.data.Kleisli
 import cats.effect.IO
 import org.http4s.circe.jsonOf
-import org.http4s.implicits._
+import org.http4s.implicits._ 
 import org.http4s.util.CaseInsensitiveString
 import org.http4s.{Method, Request, _}
 import org.specs2._
-import AppServer._
 import tsec.authentication
 import tsec.authentication.TSecBearerToken
 import tsec.common.SecureRandomId
+import domain._
+import login._
 
 class AppServerSpec extends Specification {
   def is =
@@ -27,17 +28,17 @@ class AppServerSpec extends Specification {
 
   implicit val listS: EntityDecoder[IO, List[String]] = jsonOf[IO, List[String]]
 
-  private val newUser = UserStore.UsernamePasswordCredentials("username", "password")
+  private val newUser = UsernamePasswordCredentials("username", "password")
 
   private val appServerWithTaskService = for {
     userStore <- UserStore(newUser)
     tokenStore <- TokenStore.empty
     taskService <- tasks.TaskService.empty
-  } yield (AppServer.server(userStore, tokenStore, taskService), taskService, tokenStore)
+  } yield (AppServer.routes(userStore, tokenStore, taskService), taskService, tokenStore)
 
   private val appServer = appServerWithTaskService.map(_._1)
 
-  private def extractUserByToken(tokenStore: authentication.BackingStore[IO, SecureRandomId, TSecBearerToken[UserStore.UserId]], token: Header) = {
+  private def extractUserByToken(tokenStore: authentication.BackingStore[IO, SecureRandomId, TSecBearerToken[UserId]], token: Header) = {
     tokenStore.get(SecureRandomId(token.value.split(" ")(1))).map(_.identity).value
       .flatMap(uIdOpt => IO.fromEither(uIdOpt.toRight(new RuntimeException("Token Not Found"))))
   }
@@ -52,7 +53,6 @@ class AppServerSpec extends Specification {
       token <- IO.fromEither(response)
     } yield token
   }
-
 
   def addTaskToList = (for {
     serverAndTaskS <- appServerWithTaskService

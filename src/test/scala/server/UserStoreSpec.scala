@@ -3,7 +3,8 @@ package server
 import cats.effect.IO
 import io.chrisdavenport.fuuid.FUUID
 import org.specs2.Specification
-import server.UserStore.{UserId, UsernamePasswordCredentials}
+import domain._
+import server.login.UsernamePasswordCredentials
 
 class UserStoreSpec extends Specification { def is = s2"""
       User Store:
@@ -18,5 +19,5 @@ class UserStoreSpec extends Specification { def is = s2"""
 }
 
 object UserStoreSpec {
-  def randomUserId: IO[UserId] = FUUID.randomFUUID[IO].map(UserStore.tagFUUIDAsUserId)
+  def randomUserId: IO[UserId] = FUUID.randomFUUID[IO].map(tagFUUIDAsUserId)
 }

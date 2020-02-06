@@ -25,6 +25,7 @@ val catsVersion = "2.0.0"
 val circeVersion = "0.12.1"
 val catsLogVersion = "1.0.1"
 val shapelessVersion = "2.3.3"
+val pureConfigVersion = "0.12.2"
 
 val spec2Version = "4.6.0"
 
@@ -35,6 +36,9 @@ lazy val root = (project in file("."))
     name := "securing api",
     scalacOptions in Test ++= Seq("-Yrangepos"),
     libraryDependencies ++= Seq(
+      "com.github.pureconfig" % "pureconfig_2.13" % pureConfigVersion,
+      "com.github.pureconfig" %% "pureconfig-cats-effect" % pureConfigVersion,
+
       "org.slf4j" % "slf4j-simple" % "1.7.30",
 
       "com.chuusai" % "shapeless_2.13" % shapelessVersion,

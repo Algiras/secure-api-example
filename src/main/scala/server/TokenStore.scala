@@ -3,7 +3,7 @@ package server
 import cats.data.OptionT
 import cats.effect.IO
 import cats.effect.concurrent.Ref
-import server.UserStore.UserId
+import domain.UserId
 import tsec.authentication.{BackingStore, TSecBearerToken}
 import tsec.common.SecureRandomId
 
@@ -11,7 +11,7 @@ object TokenStore {
   def apply(ref: Ref[IO, Map[SecureRandomId, TSecBearerToken[UserId]]]): BackingStore[
     IO,
     SecureRandomId,
-    TSecBearerToken[UserStore.UserId]] =
+    TSecBearerToken[UserId]] =
     new BackingStore[IO, SecureRandomId, TSecBearerToken[UserId]] {
       override def put(elem: TSecBearerToken[UserId]): IO[TSecBearerToken[UserId]] =
         ref.modify(store => (store + (elem.id -> elem), elem))
@@ -25,6 +25,6 @@ object TokenStore {
     }
 
   val empty: IO[BackingStore[IO, SecureRandomId, TSecBearerToken[UserId]]] = for {
-    tokens <- Ref.of[IO, Map[SecureRandomId, TSecBearerToken[UserStore.UserId]]](Map.empty)
+    tokens <- Ref.of[IO, Map[SecureRandomId, TSecBearerToken[UserId]]](Map.empty)
   } yield TokenStore(tokens)
 }

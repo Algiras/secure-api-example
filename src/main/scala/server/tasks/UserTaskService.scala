@@ -1,7 +1,7 @@
 package server.tasks
 
-import server.UserStore.UserId
-import server.tasks.TaskService.{Task, TaskId}
+import domain.UserId
+import server.tasks.TaskService.Task
 
 trait UserTaskService[F[_]] {
   def add(taskDescription: String): F[Task]
